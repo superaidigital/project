@@ -35,7 +35,7 @@ function checkShelterPermission($conn, $shelter_id) {
             SELECT 1 FROM healthstaff_shelters 
             WHERE user_id = ? AND shelter_id = ?
         ");
-        $stmt->bind_param("ii", $_SESSION['id'], $shelter_id);
+        $stmt->bind_param("ii", $_SESSION['user_id'], $shelter_id);
         $stmt->execute();
         return $stmt->get_result()->num_rows > 0;
     }
@@ -58,13 +58,9 @@ function getUserPermissions($conn, $user_id, $role) {
             break;
 
         case 'HealthStaff':
-            $permissions['allowed_pages'] = ['dashboard', 'shelters', 'update_shelter_details'];
-            // ดึงข้อมูลศูนย์ที่รับผิดชอบ
-            $stmt = $conn->prepare("
-                SELECT shelter_id 
-                FROM healthstaff_shelters 
-                WHERE user_id = ?
-            ");
+            // เพิ่ม assign_shelter ในหน้าที่เข้าถึงได้
+            $permissions['allowed_pages'] = ['dashboard', 'shelters', 'update_shelter_details', 'assign_shelter'];
+            $stmt = $conn->prepare("SELECT shelter_id FROM healthstaff_shelters WHERE user_id = ?");
             $stmt->bind_param("i", $user_id);
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
@@ -75,13 +71,9 @@ function getUserPermissions($conn, $user_id, $role) {
             break;
 
         case 'Coordinator':
-            $permissions['allowed_pages'] = ['dashboard', 'shelters', 'update_shelter_details'];
-            // ดึงข้อมูลศูนย์ที่รับผิดชอบ
-            $stmt = $conn->prepare("
-                SELECT assigned_shelter_id 
-                FROM users 
-                WHERE id = ?
-            ");
+             // เพิ่ม assign_shelter ในหน้าที่เข้าถึงได้
+            $permissions['allowed_pages'] = ['dashboard', 'shelters', 'update_shelter_details', 'assign_shelter'];
+            $stmt = $conn->prepare("SELECT assigned_shelter_id FROM users WHERE id = ?");
             $stmt->bind_param("i", $user_id);
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
@@ -89,6 +81,11 @@ function getUserPermissions($conn, $user_id, $role) {
                     $permissions['assigned_shelter'] = $row['assigned_shelter_id'];
                 }
             }
+            break;
+        
+        case 'User':
+            // ผู้ใช้ทั่วไปสามารถดูได้แค่ Dashboard
+            $permissions['allowed_pages'] = ['dashboard'];
             break;
     }
 
