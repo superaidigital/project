@@ -1,0 +1,93 @@
+2025-07-27 18:22:22 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-27 18:22:28 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"shelters"}
+2025-07-27 18:22:28 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"dashboard"}
+2025-07-27 18:22:29 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"users"}
+2025-07-27 18:22:35 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"users"}
+2025-07-27 18:22:36 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"shelters"}
+2025-07-27 18:22:36 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"dashboard"}
+2025-07-27 18:22:38 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-27 18:22:39 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"dashboard"}
+2025-07-27 18:22:43 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-27 18:22:47 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"shelters"}
+2025-07-27 18:22:47 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":"dashboard"}
+2025-07-27 18:22:49 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-27 18:22:49 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-27 18:22:57 | Unknown column 'active' in 'where clause' | {"error_code":1054,"user_id":null,"page":null}
+2025-07-29 11:50:18 | Table 'sisaket_db.shelter_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-29 11:57:56 | Table 'sisaket_db.shelter_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-29 11:58:24 | Table 'sisaket_db.shelter_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-29 11:58:25 | Table 'sisaket_db.shelter_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:01:35 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 03:01:55 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 03:01:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:02:14 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:02:28 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:03:36 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:03:37 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:57 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:57 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:05:59 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:06:19 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:06:36 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:07:15 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:07:17 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 03:07:26 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 03:07:28 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:28:14 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:28:19 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:29:00 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 03:29:01 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 07:52:53 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 07:58:01 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 07:58:03 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 07:58:08 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 08:30:11 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:45:22 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 09:45:45 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:45:48 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:45:50 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:45:57 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:46:01 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:46:03 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:50:33 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 09:50:42 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 10:13:37 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 10:15:36 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 10:28:05 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:12:18 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:13:32 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:13:57 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:13:59 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:14:43 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:15:45 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:15:59 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:16:01 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:16:24 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:36:03 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:36:04 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:36:30 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:36:32 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 11:41:19 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 11:42:23 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 11:43:02 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 11:45:50 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:18:53 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:18:57 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:18:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:19:00 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:19:01 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:20:02 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":null}
+2025-07-30 12:20:07 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:20:35 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:22:51 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:22:53 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:22:58 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:30:05 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:30:32 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:31:17 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:31:22 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
+2025-07-30 12:31:50 | Table 'sisaket_db.occupant_update_logs' doesn't exist | {"error_code":1146,"user_id":null,"page":"dashboard"}
