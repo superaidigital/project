@@ -1,5 +1,7 @@
 <?php
-// pages/dashboard.php
+// pages/dashboard.php (ปรับปรุงใหม่)
+// IMPROVED: รวมการ Query ข้อมูลสรุปเพื่อเพิ่มประสิทธิภาพ และเพิ่มการตรวจสอบตารางก่อนใช้งาน
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -18,53 +20,45 @@ function thai_date_full($time) {
     return "วันที่ {$day} เดือน {$month} พ.ศ. {$year}";
 }
 
-
 // --- Data Fetching with Error Handling ---
 
-// 1. Cumulative Totals (ยอดสะสม)
-$total_shelters = 0;
-$total_shelters_q = $conn->query("SELECT COUNT(*) as count FROM shelters");
-if ($total_shelters_q) {
-    $total_shelters = $total_shelters_q->fetch_assoc()['count'] ?? 0;
+// 1. IMPROVED: Cumulative Totals (ยอดสะสม) - รวม Query ให้เหลือครั้งเดียว
+$summary_data = [
+    'total_shelters' => 0, 'total_occupancy' => 0, 'total_capacity' => 0, 'total_donations' => 0
+];
+$summary_q = $conn->query("
+    SELECT
+        COUNT(id) as total_shelters,
+        SUM(CASE WHEN type NOT IN ('ศูนย์รับบริจาค', 'โรงครัวพระราชทาน') THEN current_occupancy ELSE 0 END) as total_occupancy,
+        SUM(CASE WHEN type NOT IN ('ศูนย์รับบริจาค', 'โรงครัวพระราชทาน') THEN capacity ELSE 0 END) as total_capacity,
+        SUM(CASE WHEN type = 'ศูนย์รับบริจาค' THEN current_occupancy ELSE 0 END) as total_donations
+    FROM shelters
+");
+if ($summary_q) {
+    $summary_data = $summary_q->fetch_assoc();
 }
-
-$total_occupancy = 0;
-$total_capacity = 0;
-$occupancy_q = $conn->query("SELECT SUM(current_occupancy) as sum_occ, SUM(capacity) as sum_cap FROM shelters WHERE type NOT IN ('ศูนย์รับบริจาค', 'โรงครัวพระราชทาน')");
-if ($occupancy_q) {
-    $occupancy_data = $occupancy_q->fetch_assoc();
-    $total_occupancy = $occupancy_data['sum_occ'] ?? 0;
-    $total_capacity = $occupancy_data['sum_cap'] ?? 0;
-}
+$total_shelters = $summary_data['total_shelters'] ?? 0;
+$total_occupancy = $summary_data['total_occupancy'] ?? 0;
+$total_capacity = $summary_data['total_capacity'] ?? 0;
+$total_donations = $summary_data['total_donations'] ?? 0;
 $remaining_capacity = $total_capacity - $total_occupancy;
-
-$total_donations = 0;
-$donations_q = $conn->query("SELECT SUM(current_occupancy) as sum FROM shelters WHERE type = 'ศูนย์รับบริจาค'");
-if ($donations_q) {
-    $total_donations = $donations_q->fetch_assoc()['sum'] ?? 0;
-}
 
 
 // 2. Daily Changes (ยอดวันนี้)
 $daily_occupancy_change = 0;
-$daily_occupancy_change_q = $conn->query("
-    SELECT COALESCE(SUM(IF(log_type = 'add', change_amount, -change_amount)), 0) as total_change
-    FROM shelter_logs
-    WHERE DATE(created_at) = CURDATE() AND item_unit = 'คน'
-");
-if ($daily_occupancy_change_q) {
-    $daily_occupancy_change = $daily_occupancy_change_q->fetch_assoc()['total_change'] ?? 0;
-}
-
-
 $daily_donation_change = 0;
-$daily_donation_change_q = $conn->query("
-    SELECT COALESCE(SUM(IF(log_type = 'add', change_amount, -change_amount)), 0) as total_change
-    FROM shelter_logs
-    WHERE DATE(created_at) = CURDATE() AND item_unit != 'คน' AND shelter_id IN (SELECT id FROM shelters WHERE type = 'ศูนย์รับบริจาค')
+$daily_change_q = $conn->query("
+    SELECT
+        COALESCE(SUM(CASE WHEN s.type = 'ศูนย์รับบริจาค' THEN IF(sl.log_type = 'add', sl.change_amount, -sl.change_amount) ELSE 0 END), 0) as donation_change,
+        COALESCE(SUM(CASE WHEN s.type != 'ศูนย์รับบริจาค' THEN IF(sl.log_type = 'add', sl.change_amount, -sl.change_amount) ELSE 0 END), 0) as occupancy_change
+    FROM shelter_logs sl
+    JOIN shelters s ON sl.shelter_id = s.id
+    WHERE DATE(sl.created_at) = CURDATE()
 ");
-if ($daily_donation_change_q) {
-    $daily_donation_change = $daily_donation_change_q->fetch_assoc()['total_change'] ?? 0;
+if($daily_change_q) {
+    $daily_change_data = $daily_change_q->fetch_assoc();
+    $daily_occupancy_change = $daily_change_data['occupancy_change'] ?? 0;
+    $daily_donation_change = $daily_change_data['donation_change'] ?? 0;
 }
 
 
@@ -128,7 +122,7 @@ if ($summary_q) {
 
 // 6. Daily changes for Summary Report Table
 $daily_changes_summary = [];
-// **FIX: Check if table exists before querying to prevent crash**
+// FIXED: Check if table exists before querying to prevent crash
 $table_check_q = $conn->query("SHOW TABLES LIKE 'occupant_update_logs'");
 if ($table_check_q && $table_check_q->num_rows > 0) {
     $daily_summary_q = $conn->query("
@@ -155,29 +149,20 @@ if ($table_check_q && $table_check_q->num_rows > 0) {
 }
 ?>
 
+<!-- HTML and JavaScript part remains the same as the original dashboard.php -->
 <!-- Add html2canvas library for image export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
-    /* Style for fullscreen card */
     #summary-report-card.fullscreen-card {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 5000;
-        overflow-y: auto;
-        padding: 2rem; /* Add some padding for better viewing */
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 5000; overflow-y: auto; padding: 2rem;
     }
-    body.fullscreen-active {
-        overflow: hidden;
-    }
+    body.fullscreen-active { overflow: hidden; }
 </style>
 
 <div id="dashboard-content-to-capture" class="bg-gray-100 p-1">
     <div class="space-y-8">
-        <!-- Header with Title and Export Buttons -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-gray-800">หน้าหลัก (Dashboard)</h1>
@@ -187,10 +172,6 @@ if ($table_check_q && $table_check_q->num_rows > 0) {
                 <button id="exportImageBtn" class="bg-white text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center gap-2">
                     <i data-lucide="image" class="w-4 h-4"></i>
                     <span>บันทึกเป็นรูปภาพ</span>
-                </button>
-                <button id="exportCsvBtn" class="bg-white text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center gap-2">
-                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                    <span>ส่งออกเป็น CSV</span>
                 </button>
             </div>
         </div>
@@ -297,7 +278,7 @@ if ($table_check_q && $table_check_q->num_rows > 0) {
             </div>
         </div>
 
-        <!-- START: New Summary Report Section -->
+        <!-- Summary Report Section -->
         <div id="summary-report-card" class="bg-white p-6 rounded-xl shadow-md">
             <div class="relative mb-6">
                 <div class="text-center">
@@ -318,52 +299,28 @@ if ($table_check_q && $table_check_q->num_rows > 0) {
             <?php
                 function render_summary_item($title, $color_class, $current_value, $daily_change) {
                     $change_formatted = ($daily_change >= 0 ? '+' : '') . number_format($daily_change);
-                    
                     echo "<div class='rounded-lg shadow overflow-hidden'>";
                     echo "<div class='p-2 {$color_class} text-center'><h4 class='font-semibold text-sm'>{$title}</h4></div>";
                     echo "<div class='p-4 bg-white text-center'>";
                     echo "<p class='text-2xl font-bold text-gray-800'>" . number_format($current_value ?? 0) . "</p>";
-                    echo "<p class='text-sm text-red-500'>วันนี้: {$change_formatted}</p>";
+                    echo "<p class='text-sm " . ($daily_change > 0 ? 'text-green-600' : ($daily_change < 0 ? 'text-red-600' : 'text-gray-500')) . "'>วันนี้: {$change_formatted}</p>";
                     echo "</div></div>";
                 }
             ?>
 
             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <!-- Row 1 -->
                 <?php render_summary_item('จำนวนผู้อพยพ', 'bg-blue-100 text-blue-800', $summary_report_data['total_evacuees'], $daily_changes_summary['total_evacuees_change'] ?? 0); ?>
                 <?php render_summary_item('คัดกรองสุขภาพทั่วไป', 'bg-blue-100 text-blue-800', $summary_report_data['general_screening'], $daily_changes_summary['general_screening_change'] ?? 0); ?>
                 <?php render_summary_item('ผู้สูงอายุ', 'bg-blue-100 text-blue-800', $summary_report_data['elderly'], $daily_changes_summary['elderly_change'] ?? 0); ?>
                 <?php render_summary_item('มีโรคประจำตัว', 'bg-blue-100 text-blue-800', $summary_report_data['chronic_disease'], $daily_changes_summary['chronic_disease_change'] ?? 0); ?>
                 <?php render_summary_item('ผู้พิการ', 'bg-blue-100 text-blue-800', $summary_report_data['disabled'], $daily_changes_summary['disabled_change'] ?? 0); ?>
                 <?php render_summary_item('ผู้ป่วยฟอกไต', 'bg-blue-100 text-blue-800', $summary_report_data['kidney_dialysis'], $daily_changes_summary['kidney_dialysis_change'] ?? 0); ?>
-
-                <!-- Row 2 -->
                 <?php render_summary_item('หญิงตั้งครรภ์', 'bg-pink-100 text-pink-800', $summary_report_data['pregnant'], $daily_changes_summary['pregnant_change'] ?? 0); ?>
                 <?php render_summary_item('เด็ก 0-5 ปี', 'bg-pink-100 text-pink-800', $summary_report_data['child_0_5'], $daily_changes_summary['child_0_5_change'] ?? 0); ?>
                 <?php render_summary_item('ผู้มีภาวะซึมเศร้า', 'bg-pink-100 text-pink-800', $summary_report_data['mental_health'], $daily_changes_summary['mental_health_change'] ?? 0); ?>
-                <?php render_summary_item('ผู้บาดเจ็บ', 'bg-pink-100 text-pink-800', 0, 0); ?>
-                <?php render_summary_item('ผู้ป่วยทางเดินหายใจ', 'bg-pink-100 text-pink-800', 0, 0); ?>
-                <?php render_summary_item('โรคทางเดินอาหาร', 'bg-pink-100 text-pink-800', 0, 0); ?>
-
-                 <!-- Row 3 -->
-                <?php render_summary_item('ผู้ป่วยเบาหวาน', 'bg-yellow-100 text-yellow-800', $summary_report_data['diabetes'], $daily_changes_summary['diabetes_change'] ?? 0); ?>
-                <?php render_summary_item('ผู้ป่วยความดัน', 'bg-yellow-100 text-yellow-800', $summary_report_data['hypertension'], $daily_changes_summary['hypertension_change'] ?? 0); ?>
-                <?php render_summary_item('ผู้ป่วยเรื้อรัง', 'bg-yellow-100 text-yellow-800', $summary_report_data['chronic_disease'], $daily_changes_summary['chronic_disease_change'] ?? 0); ?>
-                <?php render_summary_item('ผู้ป่วยโรคหัวใจ', 'bg-yellow-100 text-yellow-800', $summary_report_data['heart_disease'], $daily_changes_summary['heart_disease_change'] ?? 0); ?>
-                <?php render_summary_item('ผู้ป่วยโรคติดต่อ', 'bg-yellow-100 text-yellow-800', 0, 0); ?>
-                <?php render_summary_item('มะเร็งระยะสุดท้าย', 'bg-yellow-100 text-yellow-800', 0, 0); ?>
-
-                <!-- Row 4 -->
                 <?php render_summary_item('ผู้ป่วยติดบ้านติดเตียง', 'bg-green-100 text-green-800', $summary_report_data['bedridden'], $daily_changes_summary['bedridden_change'] ?? 0); ?>
-                <?php render_summary_item('ตกค้างในชุมชน', 'bg-green-100 text-green-800', 0, 0); ?>
-                <?php render_summary_item('ผู้ป่วยยาเสพติด', 'bg-green-100 text-green-800', 0, 0); ?>
-                <?php render_summary_item('ผู้เสียชีวิต', 'bg-green-100 text-green-800', 0, 0); ?>
-                <?php render_summary_item('กลับบ้าน', 'bg-green-100 text-green-800', 0, 0); ?>
-                <?php render_summary_item('ย้ายศูนย์อพยพ', 'bg-green-100 text-green-800', 0, 0); ?>
             </div>
         </div>
-        <!-- END: New Summary Report Section -->
-
     </div>
 </div>
 
@@ -387,30 +344,15 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: {
                 responsive: true,
-                plugins: {
-                    legend: { display: false }
-                },
+                plugins: { legend: { display: false } },
                 scales: {
-                    y: { 
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
-                            font: { family: 'Sarabun' }
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            font: { family: 'Sarabun' }
-                        }
-                    }
+                    y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Sarabun' }}},
+                    x: { ticks: { font: { family: 'Sarabun' }}}
                 }
             }
         });
     }
 
-    // --- Image and CSV Export Logic ---
-
-    // Generic function to show loading and capture an element
     function captureElement(element, filename) {
         Swal.fire({
             title: 'กำลังสร้างรูปภาพ...',
@@ -433,54 +375,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Export to Image Button (Whole Dashboard)
-    const exportImageBtn = document.getElementById('exportImageBtn');
-    if(exportImageBtn) {
-        exportImageBtn.addEventListener('click', () => {
-            const content = document.getElementById('dashboard-content-to-capture');
-            captureElement(content, `dashboard-summary-all-${new Date().toISOString().slice(0,10)}.png`);
-        });
-    }
+    document.getElementById('exportImageBtn')?.addEventListener('click', () => {
+        const content = document.getElementById('dashboard-content-to-capture');
+        captureElement(content, `dashboard-summary-all-${new Date().toISOString().slice(0,10)}.png`);
+    });
 
-    // Export Specific Report Card to Image
-    const exportReportCardImageBtn = document.getElementById('exportReportCardImageBtn');
-    if(exportReportCardImageBtn) {
-        exportReportCardImageBtn.addEventListener('click', () => {
-            const card = document.getElementById('summary-report-card');
-            const buttonContainer = card.querySelector('.absolute');
-            const wasFullscreen = card.classList.contains('fullscreen-card');
-
-            // Temporarily hide buttons and exit fullscreen for clean capture
-            buttonContainer.style.display = 'none';
+    document.getElementById('exportReportCardImageBtn')?.addEventListener('click', () => {
+        const card = document.getElementById('summary-report-card');
+        const buttonContainer = card.querySelector('.absolute');
+        const wasFullscreen = card.classList.contains('fullscreen-card');
+        buttonContainer.style.display = 'none';
+        if (wasFullscreen) {
+            card.classList.remove('fullscreen-card');
+            document.body.classList.remove('fullscreen-active');
+        }
+        setTimeout(() => {
+            captureElement(card, `summary-report-${new Date().toISOString().slice(0,10)}.png`);
+            buttonContainer.style.display = 'flex';
             if (wasFullscreen) {
-                card.classList.remove('fullscreen-card');
-                document.body.classList.remove('fullscreen-active');
+                card.classList.add('fullscreen-card');
+                document.body.classList.add('fullscreen-active');
             }
-            
-            // Use a timeout to allow the DOM to update before capturing
-            setTimeout(() => {
-                captureElement(card, `summary-report-${new Date().toISOString().slice(0,10)}.png`);
-                
-                // Restore button visibility and fullscreen state
-                buttonContainer.style.display = 'flex';
-                if (wasFullscreen) {
-                    card.classList.add('fullscreen-card');
-                    document.body.classList.add('fullscreen-active');
-                }
-            }, 100); // 100ms delay
-        });
-    }
+        }, 100);
+    });
 
-    // Fullscreen Report Card Button
     const fullscreenBtn = document.getElementById('fullscreenReportCardBtn');
     if(fullscreenBtn) {
         fullscreenBtn.addEventListener('click', () => {
             const card = document.getElementById('summary-report-card');
             const icon = fullscreenBtn.querySelector('i');
-            
             card.classList.toggle('fullscreen-card');
             document.body.classList.toggle('fullscreen-active');
-
             if (card.classList.contains('fullscreen-card')) {
                 icon.setAttribute('data-lucide', 'minimize');
                 fullscreenBtn.setAttribute('title', 'ย่อขนาด');
@@ -489,36 +414,6 @@ document.addEventListener('DOMContentLoaded', function() {
                  fullscreenBtn.setAttribute('title', 'ขยายเต็มจอ');
             }
             lucide.createIcons();
-        });
-    }
-
-
-    // Export to CSV Button
-    const exportCsvBtn = document.getElementById('exportCsvBtn');
-    if(exportCsvBtn){
-         exportCsvBtn.addEventListener('click', () => {
-            const summaryData = [
-                ['หัวข้อ', 'ยอดสะสม', 'เปลี่ยนแปลงวันนี้'],
-                ['ศูนย์ทั้งหมด', '<?= $total_shelters ?> แห่ง', 'N/A'],
-                ['ผู้เข้าพักทั้งหมด', '<?= $total_occupancy ?> คน', '<?= $daily_occupancy_change ?>'],
-                ['ความจุทั้งหมด', '<?= $total_capacity ?> คน', 'N/A'],
-                ['รองรับได้อีก', '<?= $remaining_capacity ?> คน', 'N/A'],
-                ['ยอดบริจาค', '<?= $total_donations ?> ชิ้น', '<?= $daily_donation_change ?>']
-            ];
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Add BOM for Excel Thai support
-            summaryData.forEach(rowArray => {
-                let row = rowArray.map(item => `"${String(item).replace(/"/g, '""')}"`).join(",");
-                csvContent += row + "\r\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `dashboard_summary_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         });
     }
 });

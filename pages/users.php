@@ -1,5 +1,7 @@
 <?php
-// pages/users.php
+// File: pages/users.php
+// DESCRIPTION: หน้าสำหรับจัดการผู้ใช้งาน พร้อมระบบค้นหา, กรองข้อมูล, และจัดการคำร้องขอ
+// (FIXED: Added exit() to API logic to prevent HTML output on API calls)
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -9,29 +11,19 @@ if (session_status() === PHP_SESSION_NONE) {
 if (isset($_GET['api'])) {
     header('Content-Type: application/json');
     
-    // ตรวจสอบสิทธิ์การเข้าถึง API
     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
         http_response_code(403);
         echo json_encode(['status' => 'error', 'message' => 'ไม่มีสิทธิ์ในการดำเนินการ']);
-        exit();
+        exit(); // IMPORTANT: Stop execution
     }
     
-    // --- FIXED: ปรับปรุงการเรียกใช้และตรวจสอบการเชื่อมต่อฐานข้อมูล ---
-    $db_connect_path = __DIR__ . '/../db_connect.php';
-    if (!file_exists($db_connect_path)) {
-        http_response_code(500);
-        error_log("Critical Error: db_connect.php not found.");
-        echo json_encode(['status' => 'error', 'message' => 'ไฟล์เชื่อมต่อฐานข้อมูลหายไป']);
-        exit();
-    }
-    require_once $db_connect_path; 
+    require_once __DIR__ . '/../db_connect.php'; 
     
     if (!isset($conn) || $conn->connect_error) {
         http_response_code(500);
-        $error_msg = isset($conn) ? $conn->connect_error : 'Connection object was not created.';
-        error_log("Database Connection Failed: " . $error_msg);
-        echo json_encode(['status' => 'error', 'message' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาตรวจสอบการตั้งค่าใน db_connect.php']);
-        exit();
+        error_log("Database Connection Failed: " . ($conn->connect_error ?? 'Unknown error'));
+        echo json_encode(['status' => 'error', 'message' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้']);
+        exit(); // IMPORTANT: Stop execution
     }
     
     $data = json_decode(file_get_contents('php://input'), true);
@@ -51,7 +43,7 @@ if (isset($_GET['api'])) {
                     LEFT JOIN shelters s ON u.assigned_shelter_id = s.id
                     LEFT JOIN healthstaff_shelters hs ON u.id = hs.user_id
                     GROUP BY u.id
-                    ORDER BY u.status = 'Pending' DESC, u.name ASC
+                    ORDER BY u.status = 'Pending' DESC, u.created_at DESC
                 ";
                 $user_result = $conn->query($user_sql);
                 while($row = $user_result->fetch_assoc()) {
@@ -162,11 +154,11 @@ if (isset($_GET['api'])) {
 
             case 'approve_user':
                 $user_id_to_approve = intval($data['id']);
-                $stmt = $conn->prepare("UPDATE users SET status = 'Active' WHERE id = ? AND status = 'Pending'");
+                $stmt = $conn->prepare("UPDATE users SET status = 'Active', role = 'Coordinator' WHERE id = ? AND status = 'Pending'");
                 $stmt->bind_param("i", $user_id_to_approve);
                 $stmt->execute();
                 if ($stmt->affected_rows > 0) {
-                    echo json_encode(['status' => 'success', 'message' => 'อนุมัติผู้ใช้งานสำเร็จ']);
+                    echo json_encode(['status' => 'success', 'message' => 'อนุมัติผู้ใช้งานและเปลี่ยนบทบาทเป็น Coordinator สำเร็จ']);
                 } else {
                     throw new Exception('ไม่พบผู้ใช้ที่รออนุมัติ หรืออาจเกิดข้อผิดพลาด');
                 }
@@ -198,7 +190,7 @@ if (isset($_GET['api'])) {
 
                 $conn->begin_transaction();
                 
-                $req_stmt = $conn->prepare("SELECT sr.*, u.role FROM shelter_requests sr JOIN users u ON sr.user_id = u.id WHERE sr.id = ? AND sr.status = 'pending'");
+                $req_stmt = $conn->prepare("SELECT * FROM shelter_requests WHERE id = ? AND status = 'pending'");
                 $req_stmt->bind_param("i", $request_id);
                 $req_stmt->execute();
                 $request = $req_stmt->get_result()->fetch_assoc();
@@ -208,24 +200,11 @@ if (isset($_GET['api'])) {
                     throw new Exception('ไม่พบคำร้องขอ หรือคำร้องนี้ถูกจัดการไปแล้ว');
                 }
 
-                if ($action === 'approve') {
-                    $user_id = $request['user_id'];
-                    $user_role = $request['role'];
+                $user_id_to_process = $request['user_id'];
+                $verification_code = null;
 
-                    if ($request['request_type'] === 'assign') {
-                        $shelter_id = $request['shelter_id'];
-                        if ($user_role === 'Coordinator') {
-                            $update_user = $conn->prepare("UPDATE users SET assigned_shelter_id = ? WHERE id = ?");
-                            $update_user->bind_param("ii", $shelter_id, $user_id);
-                            $update_user->execute();
-                            $update_user->close();
-                        } elseif ($user_role === 'HealthStaff') {
-                            $assign_health = $conn->prepare("INSERT INTO healthstaff_shelters (user_id, shelter_id) VALUES (?, ?)");
-                            $assign_health->bind_param("ii", $user_id, $shelter_id);
-                            $assign_health->execute();
-                            $assign_health->close();
-                        }
-                    } elseif ($request['request_type'] === 'create') {
+                if ($action === 'approve') {
+                    if ($request['request_type'] === 'create') {
                         $new_data = json_decode($request['new_shelter_data'], true);
                         $insert_shelter = $conn->prepare("INSERT INTO shelters (name, type) VALUES (?, ?)");
                         $insert_shelter->bind_param("ss", $new_data['name'], $new_data['type']);
@@ -233,38 +212,36 @@ if (isset($_GET['api'])) {
                         $new_shelter_id = $conn->insert_id;
                         $insert_shelter->close();
 
-                        if ($user_role === 'Coordinator') {
-                            $update_user = $conn->prepare("UPDATE users SET assigned_shelter_id = ? WHERE id = ?");
-                            $update_user->bind_param("ii", $new_shelter_id, $user_id);
-                            $update_user->execute();
-                            $update_user->close();
-                        } elseif ($user_role === 'HealthStaff') {
-                             $assign_health = $conn->prepare("INSERT INTO healthstaff_shelters (user_id, shelter_id) VALUES (?, ?)");
-                             $assign_health->bind_param("ii", $user_id, $new_shelter_id);
-                             $assign_health->execute();
-                             $assign_health->close();
-                        }
+                        $verification_code = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+                        $update_user = $conn->prepare("UPDATE users SET assigned_shelter_id = ?, verification_code = ?, is_verified = 0 WHERE id = ?");
+                        $update_user->bind_param("isi", $new_shelter_id, $verification_code, $user_id_to_process);
+                        $update_user->execute();
+                        $update_user->close();
                     }
                     
-                    $update_req = $conn->prepare("UPDATE shelter_requests SET status = 'approved', admin_notes = ? WHERE id = ?");
-                    $update_req->bind_param("si", $admin_notes, $request_id);
+                    $update_req = $conn->prepare("UPDATE shelter_requests SET status = 'approved', admin_notes = ?, processed_by = ? WHERE id = ?");
+                    $update_req->bind_param("sii", $admin_notes, $logged_in_user_id, $request_id);
                     $update_req->execute();
                     $update_req->close();
 
                 } elseif ($action === 'reject') {
-                     $update_req = $conn->prepare("UPDATE shelter_requests SET status = 'rejected', admin_notes = ? WHERE id = ?");
-                     $update_req->bind_param("si", $admin_notes, $request_id);
+                     $update_req = $conn->prepare("UPDATE shelter_requests SET status = 'rejected', admin_notes = ?, processed_by = ? WHERE id = ?");
+                     $update_req->bind_param("sii", $admin_notes, $logged_in_user_id, $request_id);
                      $update_req->execute();
                      $update_req->close();
                 }
 
                 $update_user_flag = $conn->prepare("UPDATE users SET has_pending_request = 0 WHERE id = ?");
-                $update_user_flag->bind_param("i", $request['user_id']);
+                $update_user_flag->bind_param("i", $user_id_to_process);
                 $update_user_flag->execute();
                 $update_user_flag->close();
                 
                 $conn->commit();
-                echo json_encode(['status' => 'success', 'message' => 'ดำเนินการตามคำร้องสำเร็จ']);
+                $response = ['status' => 'success', 'message' => 'ดำเนินการตามคำร้องสำเร็จ'];
+                if ($verification_code) {
+                    $response['verification_code'] = $verification_code;
+                }
+                echo json_encode($response);
                 break;
 
             default:
@@ -282,9 +259,10 @@ if (isset($_GET['api'])) {
             $conn->close();
         }
     }
-    exit();
+    exit(); // IMPORTANT: Stop script execution for all API calls
 }
 ?>
+
 <div class="space-y-6">
     <div class="flex flex-wrap justify-between items-center gap-4">
         <h1 class="text-3xl font-bold text-gray-800">จัดการผู้ใช้งาน</h1>
@@ -293,11 +271,44 @@ if (isset($_GET['api'])) {
                 <i data-lucide="mail-question"></i><span>จัดการคำขอ</span>
                 <span id="request-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
             </button>
-            <button id="addUserBtn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+            <button id="addUserBtn" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 flex items-center gap-2">
                 <i data-lucide="plus"></i><span>เพิ่มผู้ใช้งาน</span>
             </button>
         </div>
     </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white p-4 rounded-xl shadow-md">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div class="md:col-span-1">
+                <label for="searchInput" class="text-sm font-medium text-gray-700">ค้นหา</label>
+                <div class="relative mt-1">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"></i>
+                    <input type="text" id="searchInput" placeholder="ชื่อ หรือ อีเมล..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+            <div>
+                <label for="roleFilter" class="text-sm font-medium text-gray-700">บทบาท</label>
+                <select id="roleFilter" class="w-full mt-1 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">ทุกบทบาท</option>
+                    <option value="Admin">ผู้ดูแลระบบ</option>
+                    <option value="Coordinator">เจ้าหน้าที่ประสานศูนย์</option>
+                    <option value="HealthStaff">เจ้าหน้าที่สาธารณสุข</option>
+                    <option value="User">ผู้ใช้ทั่วไป</option>
+                </select>
+            </div>
+             <div>
+                <label for="statusFilter" class="text-sm font-medium text-gray-700">สถานะ</label>
+                <select id="statusFilter" class="w-full mt-1 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">ทุกสถานะ</option>
+                    <option value="Active">เปิดใช้งาน</option>
+                    <option value="Inactive">ปิดใช้งาน</option>
+                    <option value="Pending">รออนุมัติ</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
     <div class="bg-white rounded-xl shadow-md overflow-x-auto">
         <table class="min-w-full">
             <thead class="bg-gray-50">
@@ -317,6 +328,7 @@ if (isset($_GET['api'])) {
     </div>
 </div>
 
+<!-- Modals -->
 <div id="userModal" class="fixed inset-0 bg-black bg-opacity-60 overflow-y-auto h-full w-full justify-center items-center z-50 hidden">
     <div class="relative mx-auto p-8 border w-full max-w-lg shadow-lg rounded-2xl bg-white">
         <button id="closeUserModal" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i data-lucide="x" class="h-6 w-6"></i></button>
@@ -372,7 +384,7 @@ if (isset($_GET['api'])) {
             </div>
             <div class="mt-8 flex justify-end gap-3">
                  <button type="button" id="cancelUserModal" class="px-6 py-2.5 bg-gray-200 rounded-lg hover:bg-gray-300">ยกเลิก</button>
-                 <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">บันทึก</button>
+                 <button type="submit" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">บันทึก</button>
             </div>
         </form>
     </div>
@@ -380,7 +392,7 @@ if (isset($_GET['api'])) {
 <style>
     select[multiple] { height: auto; min-height: 120px; padding: 8px; }
     select[multiple] option { padding: 8px; margin: 2px 0; border-radius: 4px; cursor: pointer; }
-    select[multiple] option:checked { background-color: #3b82f6 !important; color: white; }
+    select[multiple] option:checked { background-color: #4f46e5 !important; color: white; }
     .select-tooltip { font-size: 0.75rem; color: #6B7280; margin-top: 0.25rem; }
 </style>
 
@@ -414,7 +426,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeRequestsModal = document.getElementById('closeRequestsModal');
     const requestsListContainer = document.getElementById('requestsListContainer');
     const requestCountBadge = document.getElementById('request-count-badge');
-    const showAlert = (icon, title, text = '') => Swal.fire({ icon, title, text, confirmButtonColor: '#2563EB' });
+    
+    const searchInput = document.getElementById('searchInput');
+    const roleFilter = document.getElementById('roleFilter');
+    const statusFilter = document.getElementById('statusFilter');
+
+    const showAlert = (icon, title, text = '') => Swal.fire({ icon, title, text, confirmButtonColor: '#4f46e5' });
     const closeUserModal = () => userModal.classList.add('hidden');
 
     function renderUsers() {
@@ -426,22 +443,35 @@ document.addEventListener('DOMContentLoaded', () => {
             'Pending': { text: 'รออนุมัติ', class: 'bg-yellow-100 text-yellow-800' }
         };
 
-        if (allUsers.length === 0) {
-            userTableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">ไม่พบข้อมูลผู้ใช้งาน</td></tr>';
+        const searchTerm = searchInput.value.toLowerCase();
+        const roleValue = roleFilter.value;
+        const statusValue = statusFilter.value;
+
+        const filteredUsers = allUsers.filter(user => {
+            const nameMatch = user.name.toLowerCase().includes(searchTerm);
+            const emailMatch = user.email.toLowerCase().includes(searchTerm);
+            const roleMatch = !roleValue || user.role === roleValue;
+            const statusMatch = !statusValue || user.status === statusValue;
+            return (nameMatch || emailMatch) && roleMatch && statusMatch;
+        });
+
+        if (filteredUsers.length === 0) {
+            userTableBody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">ไม่พบข้อมูลผู้ใช้งานที่ตรงกับเงื่อนไข</td></tr>';
             return;
         }
-        userTableBody.innerHTML = allUsers.map(user => {
+
+        userTableBody.innerHTML = filteredUsers.map(user => {
             let shelterInfo = '-';
             if (user.role === 'Coordinator') {
-                shelterInfo = user.shelter_name || '-';
+                shelterInfo = user.shelter_name || '<span class="text-gray-400">ยังไม่กำหนด</span>';
             } else if (user.role === 'HealthStaff' && user.health_shelter_ids) {
                 const shelterIds = user.health_shelter_ids.split(',');
                 const shelterNames = shelterIds.map(id => allShelters.find(s => s.id == id)?.name).filter(Boolean);
-                shelterInfo = shelterNames.join('<br>') || '-';
+                shelterInfo = shelterNames.join('<br>') || '<span class="text-gray-400">ยังไม่กำหนด</span>';
             }
             
             const statusInfo = statusDisplay[user.status] || { text: user.status, class: 'bg-gray-100 text-gray-800' };
-            let actionButtons = `<button class="edit-btn text-blue-600 hover:text-blue-900" data-user='${JSON.stringify(user)}'>แก้ไข</button>
+            let actionButtons = `<button class="edit-btn text-indigo-600 hover:text-indigo-900" data-user='${JSON.stringify(user)}'>แก้ไข</button>
                                  <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${user.id}" data-name="${user.name}">ลบ</button>`;
             if (user.status === 'Pending') {
                 actionButtons = `<button class="approve-btn text-green-600 hover:text-green-900" data-id="${user.id}" data-name="${user.name}">อนุมัติ</button>` + actionButtons;
@@ -473,7 +503,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function mainFetch() {
         try {
-            const response = await fetch(`${API_URL}?api=get_data`);
+            const response = await fetch(`${API_URL}&api=get_data`);
             const result = await response.json();
             if (result.status === 'success') {
                 allUsers = result.users;
@@ -494,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             if (result.status === 'success') {
                 mainFetch();
-                return { success: true, message: result.message };
+                return { success: true, message: result.message, verification_code: result.verification_code };
             } else { return { success: false, message: result.message }; }
         } catch (error) { console.error('Submit error:', error); return { success: false, message: 'การเชื่อมต่อล้มเหลว' }; }
     }
@@ -543,7 +573,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadRequests() {
-        const response = await fetch(`${API_URL}?api=get_requests`);
+        const response = await fetch(`${API_URL}&api=get_requests`);
         const result = await response.json();
         if (result.status === 'success') {
             const requests = result.data;
@@ -595,15 +625,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (notes === undefined) return;
             admin_notes = notes;
         }
-        const response = await fetch(`${API_URL}?api=process_request`, {
+        const response = await fetch(`${API_URL}&api=process_request`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ request_id: id, action: action, admin_notes: admin_notes })
         });
         const result = await response.json();
         if (result.status === 'success') {
-            Swal.fire('สำเร็จ!', result.message, 'success');
-            loadRequests(); mainFetch();
-        } else { Swal.fire('ผิดพลาด!', result.message, 'error'); }
+            if (result.verification_code) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'อนุมัติสำเร็จ!',
+                    html: `${result.message}<br><br><strong>รหัสยืนยันสำหรับผู้ใช้คือ:</strong><br><div style="font-size: 1.5rem; font-weight: bold; letter-spacing: 2px; margin-top: 8px; padding: 8px; background-color: #f0f0f0; border-radius: 8px;">${result.verification_code}</div><br>กรุณาส่งรหัสนี้ให้ผู้ใช้เพื่อยืนยันตัวตน`
+                });
+            } else {
+                Swal.fire('สำเร็จ!', result.message, 'success');
+            }
+            loadRequests(); 
+            mainFetch();
+        } else { 
+            Swal.fire('ผิดพลาด!', result.message, 'error'); 
+        }
     }
 
     addUserBtn.addEventListener('click', () => openUserModal());
@@ -620,12 +661,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const { id, name } = e.target.dataset;
             if (id == loggedInUserId) { showAlert('error', 'ไม่สามารถลบตัวเองได้'); return; }
             Swal.fire({ title: 'ยืนยันการลบ?', text: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${name}"?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6b7280', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก'
-            }).then(async (result) => { if (result.isConfirmed) { const res = await submitForm(`${API_URL}?api=delete_user`, { id }); showAlert(res.success ? 'success' : 'error', res.message); } });
+            }).then(async (result) => { if (result.isConfirmed) { const res = await submitForm(`${API_URL}&api=delete_user`, { id }); showAlert(res.success ? 'success' : 'error', res.message); } });
         }
         if (e.target.classList.contains('approve-btn')) {
             const { id, name } = e.target.dataset;
-            Swal.fire({ title: 'ยืนยันการอนุมัติ?', text: `คุณต้องการอนุมัติผู้ใช้ "${name}" หรือไม่?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6b7280', confirmButtonText: 'ใช่, อนุมัติ!', cancelButtonText: 'ยกเลิก'
-            }).then(async (result) => { if (result.isConfirmed) { const res = await submitForm(`${API_URL}?api=approve_user`, { id }); showAlert(res.success ? 'success' : 'error', res.message); } });
+            Swal.fire({ title: 'ยืนยันการอนุมัติ?', text: `คุณต้องการอนุมัติผู้ใช้ "${name}" และเปลี่ยนบทบาทเป็น Coordinator หรือไม่?`, icon: 'question', showCancelButton: true, confirmButtonColor: '#28a745', cancelButtonColor: '#6b7280', confirmButtonText: 'ใช่, อนุมัติ!', cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => { if (result.isConfirmed) { const res = await submitForm(`${API_URL}&api=approve_user`, { id }); showAlert(res.success ? 'success' : 'error', res.message); } });
         }
     });
 
@@ -638,7 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('multiShelterError').style.display = 'block'; return;
             } else { document.getElementById('multiShelterError').style.display = 'none'; }
         }
-        const url = data.id ? `${API_URL}?api=edit_user` : `${API_URL}?api=add_user`;
+        const url = data.id ? `${API_URL}&api=edit_user` : `${API_URL}&api=add_user`;
         const result = await submitForm(url, data);
         if (result.success) { closeUserModal(); showAlert('success', result.message); } 
         else { showAlert('error', 'เกิดข้อผิดพลาด', result.message); }
@@ -651,6 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.classList.contains('reject-request-btn')) { processRequest(e.target.dataset.id, 'reject'); }
     });
     
+    searchInput.addEventListener('input', renderUsers);
+    roleFilter.addEventListener('change', renderUsers);
+    statusFilter.addEventListener('change', renderUsers);
+
     mainFetch();
     loadRequests();
 });

@@ -1,41 +1,24 @@
-</main>
+<?php
+// File: partials/footer.php
+// DESCRIPTION: ส่วนท้ายของหน้าเว็บและ Script ที่จำเป็น
+
+?>
+    </main> <!-- End of main content -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
+            // Initialize Lucide Icons
             lucide.createIcons();
 
-            const sidebar = document.getElementById('sidebar');
-            const mainContent = document.getElementById('mainContent');
-            const toggleButton = document.getElementById('sidebarToggle');
-            const toggleIcon = toggleButton.querySelector('i');
-
-            const setSidebarState = (collapsed) => {
-                if (collapsed) {
-                    sidebar.classList.add('collapsed');
-                    document.body.classList.add('sidebar-collapsed');
-                    toggleIcon.setAttribute('data-lucide', 'chevron-right');
-                } else {
-                    sidebar.classList.remove('collapsed');
-                    document.body.classList.remove('sidebar-collapsed');
-                    toggleIcon.setAttribute('data-lucide', 'chevron-left');
-                }
-                lucide.createIcons();
-            };
-
-            // Check for saved state in localStorage
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            setSidebarState(isCollapsed);
-
-            toggleButton.addEventListener('click', () => {
-                const collapsed = sidebar.classList.toggle('collapsed');
-                localStorage.setItem('sidebarCollapsed', collapsed);
-                setSidebarState(collapsed);
-            });
+            // Mobile menu toggle
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
         });
-    </script>
-    <!-- เพิ่ม Lucide initialization -->
-    <script>
-        lucide.createIcons();
     </script>
 </body>
 </html>

@@ -1,24 +1,22 @@
 <?php
-// db_connect.php
-
 $servername = "localhost";
+$username = "root"; // Your MySQL username (default for XAMPP is "root")
+$password = ""; // Your MySQL password (default for XAMPP is empty)
+$dbname = "sskpaoii_db"; // The database name
 
-// !!! สำคัญ: กรุณาตรวจสอบว่าข้อมูลส่วนนี้ถูกต้อง !!!
-//----------------------------------------------------
-$username = "root";         // ชื่อผู้ใช้ฐานข้อมูล (สำหรับ XAMPP ส่วนใหญ่คือ "root")
-$password = "";             // รหัสผ่าน (สำหรับ XAMPP ส่วนใหญ่จะเป็นค่าว่าง "")
-$dbname   = "sskpaoii_db";  // ชื่อฐานข้อมูลที่คุณสร้าง
-//----------------------------------------------------
-
-// ปิดการรายงานข้อผิดพลาดเริ่มต้น เพื่อให้สคริปต์หลักจัดการเอง
-mysqli_report(MYSQLI_REPORT_OFF);
-
-// สร้างการเชื่อมต่อ
+// Create connection
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// ตรวจสอบการเชื่อมต่อ แต่ไม่ใช้ die() เพื่อให้สคริปต์หลักจัดการข้อผิดพลาดเอง
-if (!$conn->connect_error) {
-  $conn->set_charset("utf8");
+// Set charset to utf8
+$conn->set_charset("utf8");
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
 }
-// หาก $conn->connect_error มีค่า, สคริปต์ที่เรียกใช้ไฟล์นี้จะสามารถตรวจสอบและจัดการได้
+
+// Check connection status
+if (!$conn->ping()) {
+  die("Cannot connect to the database");
+}
 ?>
